@@ -193,9 +193,16 @@ def eval_classification(rows, seed=0):
     min_class = min((labels == c).sum() for c in CATEGORIES)
     k = int(max(2, min(5, min_class)))
     skf = StratifiedKFold(n_splits=k, shuffle=True, random_state=seed)
+    # 표본이 작으면 안정화를 위해 모델 용량을 키우고, 충분하면 과적합 방지용 경량 모델 사용
+    if len(labels) < 40:
+        tfidf = TfidfVectorizer(ngram_range=(1, 2), min_df=1)
+        C = 10.0
+    else:
+        tfidf = TfidfVectorizer(ngram_range=(1, 1), min_df=1)
+        C = 1.0
     pipe = Pipeline([
-        ("tfidf", TfidfVectorizer(ngram_range=(1, 2), min_df=1)),
-        ("clf", LogisticRegression(max_iter=1000, C=10)),
+        ("tfidf", tfidf),
+        ("clf", LogisticRegression(max_iter=1000, C=C)),
     ])
     # 교차검증 기반 held-out 예측 (정직한 일반화 성능)
     y_pred = cross_val_predict(pipe, texts, labels, cv=skf)
